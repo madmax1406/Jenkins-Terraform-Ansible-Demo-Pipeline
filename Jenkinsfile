@@ -44,6 +44,7 @@ stage('Select Workspace') {
 
 stage('Plan Infra') {
   steps {
+    echo "Planning for workspace $TF_VAR_env"
     sh 'terraform plan -var="region=$TF_VAR_region" -var="instance_count=$TF_VAR_instance_count"'
   }
 }
