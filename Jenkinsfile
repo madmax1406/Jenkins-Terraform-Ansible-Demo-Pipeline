@@ -18,6 +18,7 @@ TF_VAR_instance_count = "${params.INSTANCE_COUNT}"
 }
 
 stages {
+
 stage('Clone Repo') {
 steps {
 git 'https://github.com/madmax1406/Jenkins-Terraform-Ansible-Demo-Pipeline.git'
@@ -49,7 +50,6 @@ stage('Apply Infra') {
     sh 'terraform apply -auto-approve -var="region=$TF_VAR_region" -var="instance_count=$TF_VAR_instance_count"'
   }
 }
-}
 
 stage('Extract EC2 IPs') {
   steps {
@@ -74,6 +74,8 @@ stage('Configure with Ansible') {
       ansible-playbook -i hosts.ini playbook.yml --private-key ~/.ssh/your-key.pem
     '''
   }
+}
+
 }
 
 post {
