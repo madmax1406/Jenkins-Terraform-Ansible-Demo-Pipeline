@@ -73,8 +73,7 @@ stage('Extract EC2 IPs') {
 stage('Generate Ansible Inventory ( Host File)') {
   steps {
     sh '''
-      echo "ansible_user=ubuntu" > hosts.ini
-      echo "[ec2_instances]" >> hosts.ini
+      echo "[ec2_instances]" > hosts.ini
       cat inventory_ips.txt >> hosts.ini
     '''
   }
