@@ -83,7 +83,7 @@ stage('Configure with Ansible') {
   steps {
     withCredentials([sshUserPrivateKey(credentialsId: 'jenkins-ec2-ssh', keyFileVariable: 'SSH_KEY')]) {
     sh '''
-    ansible-playbook -i hosts.ini playbook.yml ubuntu --private-key "$SSH_KEY"
+    ansible-playbook -i hosts.ini playbook.yml --private-key "$SSH_KEY"
     '''
 }
   }
