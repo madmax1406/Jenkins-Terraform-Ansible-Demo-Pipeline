@@ -9,6 +9,10 @@ string(name: 'ENV', defaultValue: 'dev', description: 'Environment (dev/stage/pr
 string(name: 'INSTANCE_COUNT', defaultValue: '2', description: 'Number of EC2 instances')
 }
 
+tools {
+  terraform 'myterraform'
+}
+
 environment {
 AWS_ACCESS_KEY    = credentials('aws_access_key')
 AWS_ACCESS_SECRET = credentials('aws_access_secret')
