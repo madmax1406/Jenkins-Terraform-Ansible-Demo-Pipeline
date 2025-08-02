@@ -73,7 +73,8 @@ stage('Extract EC2 IPs') {
 stage('Generate Ansible Inventory ( Host File)') {
   steps {
     sh '''
-      echo "[ec2_instances]" > hosts.ini
+      echo "ansible_user=ubuntu" > hosts.ini
+      echo "[ec2_instances]" >> hosts.ini
       cat inventory_ips.txt >> hosts.ini
     '''
   }
@@ -81,9 +82,9 @@ stage('Generate Ansible Inventory ( Host File)') {
 
 stage('Configure with Ansible') {
   steps {
-    withCredentials([sshUserPrivateKey(credentialsId: 'jenkins-ec2-ssh', keyFileVariable: 'SSH_KEY')]) {
+    withCredentials([sshUserPrivateKey(credentialsId: 'ansible_ssh_key', keyFileVariable: 'SSH_KEY' , usernameVariable: 'SSH_USER')]) {
     sh '''
-    ansible-playbook -i hosts.ini playbook.yml --private-key "$SSH_KEY"
+    ansible-playbook -i hosts.ini playbook.yml --private-key "$SSH_KEY" -u "$SSH_USER"
     '''
 }
   }
