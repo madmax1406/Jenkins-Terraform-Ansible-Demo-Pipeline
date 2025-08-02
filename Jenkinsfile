@@ -30,6 +30,8 @@ git branch: 'main', url: 'https://github.com/madmax1406/Jenkins-Terraform-Ansibl
 }
 stage('Initialise Terraform') {
   steps {
+      echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY"
+    echo "AWS_SECRET_ACCESS_KEY=${AWS_ACCESS_SECRET:0:4}********"
     sh 'terraform init'
   }
 }
@@ -44,6 +46,10 @@ stage('Select Workspace') {
 
 stage('Plan Infra') {
   steps {
+    withCredentials([
+        string(credentialsId: 'aws_access_key', variable: 'AWS_ACCESS_KEY'),
+        string(credentialsId: 'aws_access_secret', variable: 'AWS_ACCESS_SECRET')
+    ])
     sh 'terraform validate'
     echo "Planning for workspace $TF_VAR_env"
     sh 'terraform plan -var="region=$TF_VAR_region" -var="instance_count=$TF_VAR_instance_count"'
