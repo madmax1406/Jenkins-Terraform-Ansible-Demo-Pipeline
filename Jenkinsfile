@@ -10,6 +10,8 @@ string(name: 'INSTANCE_COUNT', defaultValue: '2', description: 'Number of EC2 in
 }
 
 environment {
+AWS_ACCESS_KEY    = credentials('aws_access_key')
+AWS_ACCESS_SECRET = credentials('aws_access_secret')
 TF_VAR_region = "${params.REGION}"
 TF_VAR_env = "${params.ENV}"
 TF_VAR_instance_count = "${params.INSTANCE_COUNT}"

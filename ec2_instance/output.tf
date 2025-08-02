@@ -1,3 +1,3 @@
 output "public_ip_for_ec2" {
-  value = aws_instance.demopsec2[*].public_ip
+  value = [for instance in aws_instance.demopsec2 : instance.public_ip if instance.public_ip != null]
 }

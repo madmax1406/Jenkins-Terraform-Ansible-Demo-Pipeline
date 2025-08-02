@@ -4,5 +4,10 @@ resource "aws_instance" "demopsec2" {
   instance_type = var.instance_type
   subnet_id = var.subnet
   count = var.instance_count
+  associate_public_ip_address = true
+
+  tags = {
+    Name = "Demo EC2 ${count.index + 1}"
+  }
 }
 
