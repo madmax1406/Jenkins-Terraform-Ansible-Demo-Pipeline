@@ -94,7 +94,7 @@ stage('Configure with Ansible') {
   steps {
     withCredentials([sshUserPrivateKey(credentialsId: 'ansible_ssh_key', keyFileVariable: 'SSH_KEY' , usernameVariable: 'SSH_USER')]) {
     sh '''
-    ansible-playbook -i hosts.ini playbook.yml --private-key "$SSH_KEY" -u "$SSH_USER" --ssh-extra-args "-o StrictHostKeyChecking=no"
+    ansible-playbook -i hosts.ini playbook.yml --private-key "$SSH_KEY" -u "$SSH_USER"
     '''
 }
   }
