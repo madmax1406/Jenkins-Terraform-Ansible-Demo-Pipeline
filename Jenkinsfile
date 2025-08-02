@@ -31,7 +31,7 @@ git branch: 'main', url: 'https://github.com/madmax1406/Jenkins-Terraform-Ansibl
 stage('Initialise Terraform') {
   steps {
     echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY"
-    echo "AWS_SECRET_ACCESS_KEY=${AWS_ACCESS_SECRET:0:4}********"
+    echo "AWS_SECRET_ACCESS_KEY=${AWS_ACCESS_SECRET}********"
 
     sh '''
       # Grant Jenkins ownership of the workspace
