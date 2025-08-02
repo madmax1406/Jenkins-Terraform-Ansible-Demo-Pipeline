@@ -1,0 +1,31 @@
+---
+- name: Install and configure Nginx to load static HTML Page
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Install nginx
+      apt:
+        name: nginx
+        state: latest
+        update_cache: yes
+
+    - name: Ensure nginx is running and enabled at boot
+      service:
+        name: nginx
+        state: started
+        enabled: yes
+
+    - name: Create custom index.html file
+      copy:
+        content: |
+          <html>
+            <head><title>Welcome to DevOps</title></head>
+            <body>
+              <h1>Jenkins Terraform Ansible Demo 🚀</h1>
+            </body>
+          </html>
+        dest: /var/www/html/index.html
+        owner: www-data
+        group: www-data
+        mode: '0644'
