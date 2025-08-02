@@ -70,6 +70,17 @@ stage('Extract EC2 IPs') {
   }
 }
 
+stage('Add EC2 Host to known_hosts') {
+  steps {
+    sh '''
+      EC2_IP=$(cat inventory_ips.txt | head -n 1)
+
+      echo "Fetching SSH host key for $EC2_IP..."
+      ssh-keyscan -H $EC2_IP >> ~/.ssh/known_hosts
+    '''
+  }
+}
+
 stage('Generate Ansible Inventory ( Host File)') {
   steps {
     sh '''
@@ -92,6 +103,14 @@ stage('Configure with Ansible') {
 }
 
 post {
+success {
+    sh '''
+      terraform output -json public_ip_for_ec2 | jq -r '.[]' > createdinstance_ip.txt
+      echo 'The IP for your created EC2 machine are below:'
+      cat createdinstance_ip.txt
+    '''
+}
+
 always {
 archiveArtifacts artifacts: '**/terraform.tfstate*', fingerprint: true
 }
