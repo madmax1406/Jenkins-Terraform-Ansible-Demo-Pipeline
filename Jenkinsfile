@@ -75,9 +75,11 @@ stage('Generate Ansible Inventory ( Host File)') {
 
 stage('Configure with Ansible') {
   steps {
+    withCredentials([sshUserPrivateKey(credentialsId: 'ansible_ssh_key', keyFileVariable: 'SSH_KEY')]) {
     sh '''
-      ansible-playbook -i hosts.ini playbook.yml --private-key ~/.ssh/your-key.pem
+    ansible-playbook -i hosts.ini playbook.yml --private-key $SSH_KEY
     '''
+}
   }
 }
 
