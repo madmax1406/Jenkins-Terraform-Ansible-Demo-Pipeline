@@ -21,7 +21,7 @@ stages {
 
 stage('Clone Repo') {
 steps {
-git 'https://github.com/madmax1406/Jenkins-Terraform-Ansible-Demo-Pipeline.git'
+git branch: 'main', url: 'https://github.com/madmax1406/Jenkins-Terraform-Ansible-Demo-Pipeline.git'
 }
 }
 stage('Initialise Terraform') {
