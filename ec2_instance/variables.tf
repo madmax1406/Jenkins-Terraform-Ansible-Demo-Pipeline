@@ -17,3 +17,11 @@ variable "instance_count" {
 variable "region" {
   description = "Region for Instance"
 }
+
+variable "key_name" {
+  description = "Region for Instance"
+}
+
+variable "vpc_id" {
+  description = "Region for Instance"
+}

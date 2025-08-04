@@ -1,0 +1,26 @@
+# Local Terraform directories and state files
+.terraform/
+terraform.tfstate
+terraform.tfstate.backup
+terraform.tfvars
+
+# Crash logs, lock files
+*.log
+*.lock.hcl
+
+# Sensitive files
+*.pem
+secretFiles/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE / Editor
+*.swp
+.vscode/
+.idea/
+
+# Jenkins temp and workspace
+workspace/
+*.tmp

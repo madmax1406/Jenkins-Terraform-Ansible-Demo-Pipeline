@@ -3,18 +3,12 @@ provider "aws" {
 }
 
 module "ec2" {
-  source         = "./ec2_instance"
-  ami_value      = "ami-020cba7c55df1f615"
-  instance_type  = "t2.micro"
-  subnet         = "subnet-0bcd2a69b1fc1fead"
-  instance_count = var.instance_count
   region         = var.region
-}
-
-variable "region" {
-
-}
-
-variable "instance_count" {
-  type = number
+  source         = "./ec2_instance"
+  ami_value      = var.ami_value
+  instance_type  = var.instance_type
+  subnet         = var.subnet
+  key_name       = var.key_name
+  vpc_id         = var.vpc_id
+  instance_count = var.instance_count
 }
