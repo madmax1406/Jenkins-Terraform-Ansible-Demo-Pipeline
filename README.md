@@ -1,164 +1,109 @@
-🚀 How I Built Jenkins CI/CD Pipeline on AWS (And What I Learned)
+# 🚀 How I Built Terraform & Ansible Automation CI/CD Pipeline on AWS using Jenkins
 
-A demo pipeline showcasing end-to-end infrastructure provisioning using Terraform, configuration management with Ansible, and orchestration via Jenkins for beginners.
+### A demo pipeline showcasing end-to-end infrastructure provisioning with Terraform, and configuration management with Ansible, all orchestrated by Jenkins for beginners.
 
----
+#### 📊 Pipeline Overview
 
-## 🧩 Pipeline Overview
+This pipeline is basically a way where developers can get a working EC2 instance created without intervention from the DevOps Team. It ensures the desired infrastructure is created in the right environment without giving AWS Console access to the devs.
 
-This pipeline is basically a way for developers to create working EC2 instances without needing DevOps team intervention or AWS console access. It ensures that infrastructure is created in the desired environment, automatically and securely.
+The Jenkins pipeline is parameterized and takes below inputs from the user:
 
-The Jenkins pipeline is parameterized and takes the following inputs from the user:
+- Region (Where the resource should be deployed)
+- Environment (dev, test)
+- Number of Instances (How many do you want to deploy)
 
-1. **Region** : Where the resource should be deployed.
-2. **Environment** : (dev, test , stage)
-3. **Number of Instances** : How many EC2 instances to deploy.
+Once inputs are received, they're passed to Terraform which then initializes, validates, plans and applies the configuration. After EC2 instances are created, the pipeline moves to the Ansible stage which installs NGINX and displays our custom HTML page at: http://<ec2-public-ip>.
 
-Once the inputs are received, they’re passed to Terraform which initializes, validates, plans, and applies the configuration. Once the EC2 instances are created, the pipeline proceeds with the Ansible stage to install Nginx and display a custom HTML page when the EC2 public IP is accessed.
+##### 📅 Tech Stack Overview
 
-The Build Parameter screen looks like below to the users 
+**1. Terraform**
+    Provisions AWS resources:
 
-![image.png](attachment:81c68524-0fd3-4918-843d-d23f2cd3e1c0:image.png)
+- VPC, Subnet, Security Group (SSH & HTTP open)
+- EC2 instances (key-pair, public IP)
+- Uses modules with reusable variables.
 
----
+**2. Jenkins**
 
-## 🔧 Prerequisites
+Declarative pipeline (Jenkinsfile) with parameters:
+    REGION, ENV, INSTANCE_COUNT
 
-### AWS
+Stages:
+- Clone repo
+- Terraform init/plan/apply
+- Extract public IPs
+- Generate Ansible inventory
+- SSH host key pre-scan
+- Run Ansible playbook
+- Publish outputs & archive state
 
-- IAM role/user with permissions for EC2, VPC, S3, and DynamoDB.
-- Key pair created in EC2 (e.g., `jenkinskey`).
+**3. Ansible**
 
-### Jenkins
+Installs and configures NGINX with a custom HTML page
+Uses IPs extracted from Terraform output as dynamic inventory
 
-- Installed and running on an EC2 instance (t2.large or higher preferred).
-- Listens on port 8080.
+🔧 Prerequisites
 
-### Jenkins Credentials
+**AWS**
 
-- **AWS**: Access key/secret or an IAM role attached to the instance.
-- **SSH Key**: ID = `ansible_ssh_key`, Username = `ubuntu`, Private key = content of your `.pem` file used in EC2 creation.
+- IAM role or user with access to EC2, VPC, S3, and DynamoDB
+- Key pair (e.g., jenkinskey) should be created in AWS EC2
 
-### Tools Installed on Jenkins Host
+**Jenkins**
 
-- Terraform ≥ v1.6.x
-- Ansible ≥ v2.9
-- AWS CLI
-- Git
-- Java (for Jenkins)
+- Should be installed on an EC2 instance (t2.large recommended)
+- Port 8080 must be open in Security Group
 
----
+**Credentials setup:**
 
-## ⚙️ Technologies Used
+- AWS credentials (either via IAM role or Jenkins UI)
+- Ansible SSH key: ansible_ssh_key (type: SSH Username with private key)
 
-### 1. **Terraform**
+**Tools on Jenkins Agent:**
 
-- Provisions AWS infrastructure:
-    - VPC, Subnet, Security Group (SSH & HTTP open)
-    - EC2 instances with key pair and public IP
-- Uses modular and reusable variable structure.
+Terraform >= 1.6.x
+Ansible >= 2.9
+AWS CLI
+Git
+Java
 
-### 2. **Jenkins**
+#### 📂 Jenkins Pipeline Breakdown
 
-- Declarative pipeline with input parameters:
-    - `REGION`, `ENV`, `INSTANCE_COUNT`
-- Key stages:
-    1. Clone repo
-    2. Terraform init/plan/apply
-    3. Extract public IPs
-    4. Generate Ansible inventory
-    5. SSH host key pre-scan
-    6. Ansible configuration
-    7. Output EC2 IP and archive Terraform state
-
-### 3. **Ansible**
-
-- Installs and configures Nginx with a custom HTML page.
-- Uses dynamic inventory created from Terraform output.
-
----
-
-## 🧱 Step-by-Step Pipeline (Jenkinsfile)
-
-Let’s walk through each part of the Jenkins pipeline:
-
-### 1. Pipeline Header
-
-```groovy
-groovy
-CopyEdit
+**1. Define Agent**
+```
 pipeline {
   agent any
-
 ```
+We use agent any for simplicity, but ideally, use dedicated build agents.
 
-We choose `agent any` to run the job on the Jenkins master (for demo). In production, you'd use agents/slaves.
-
----
-
-### 2. Input Parameters
-
-```groovy
-groovy
-CopyEdit
+**2. Define Parameters**
+```
 parameters {
   string(name: 'REGION', defaultValue: 'us-east-1', description: 'AWS region')
-  string(name: 'ENV', defaultValue: 'dev', description: 'Environment (dev/test/stage)')
+  string(name: 'ENV', defaultValue: 'dev', description: 'Environment (dev/test)')
   string(name: 'INSTANCE_COUNT', defaultValue: '1', description: 'Number of EC2 instances')
 }
-
 ```
-
-These parameters define how the infrastructure is created based on user input.
-
----
-
-### 3. Environment Variables
-
-```groovy
-groovy
-CopyEdit
+**3. Set Environment Variables**
+```
 environment {
   AWS_ACCESS_KEY    = credentials('aws_access_key')
   AWS_ACCESS_SECRET = credentials('aws_access_secret')
-  TF_VAR_region     = "${params.REGION}"
-  TF_VAR_env        = "${params.ENV}"
+  TF_VAR_region = "${params.REGION}"
+  TF_VAR_env = "${params.ENV}"
   TF_VAR_instance_count = "${params.INSTANCE_COUNT}"
 }
-
 ```
-
-Sensitive credentials are securely pulled from Jenkins’ credential store.
-
----
-
-### 4. Stages
-
-This is where all magic happens , we will now proceed defining stages of the pipeline , a stage is small set of task defined to segregate each operation being performed.
-
-Lets start one by one 
-
-### Stage: Clone Repo
-
-```groovy
-groovy
-CopyEdit
+**4. Clone Git Repository**
+```
 stage('Clone Repo') {
   steps {
     git branch: 'main', url: 'https://github.com/madmax1406/Jenkins-Terraform-Ansible-Demo-Pipeline.git'
   }
 }
 ```
-
----
-
-### Stage: Initialize Terraform
-
-This will initialize terraform in your current working directory , this command will work only if there is a [main.tf](http://main.tf) in your directory 
-
-```groovy
-groovy
-CopyEdit
+**5. Initialize Terraform**
+```
 stage('Initialise Terraform') {
   steps {
     sh '''
@@ -168,35 +113,16 @@ stage('Initialise Terraform') {
   }
 }
 ```
-
----
-
-### Stage: Select Workspace
-
-Workspaces are very important to segregate the resources , this step  helps us select the workspace where the resource is to be deployed . Read more about Terraform workspaces HERE.
-
-```groovy
-groovy
-CopyEdit
+**6. Select or Create Workspace**
+```
 stage('Select Workspace') {
   steps {
-    sh '''
-      terraform workspace select $TF_VAR_env || terraform workspace new $TF_VAR_env
-    '''
+    sh 'terraform workspace select $TF_VAR_env || terraform workspace new $TF_VAR_env'
   }
 }
-
 ```
-
----
-
-### Stage: Plan Infra
-
-This step basically gives you the plan about the infra its going to create as per your input 
-
-```groovy
-groovy
-CopyEdit
+**7. Terraform Plan**
+```
 stage('Plan Infra') {
   steps {
     sh 'terraform validate'
@@ -204,20 +130,9 @@ stage('Plan Infra') {
     sh 'terraform plan -var="region=$TF_VAR_region" -var="instance_count=$TF_VAR_instance_count"'
   }
 }
-
 ```
-
----
-
-### Stage: Apply Infra
-
-If you are good with everything , this step will apply the infra , this step also contains gate stop asking whether to proceed or abort , it will prompt something like below 
-
-![image.png](attachment:9e68dce6-2d75-4cd4-ae49-036e72f4e9ba:image.png)
-
-```groovy
-groovy
-CopyEdit
+**8. Terraform Apply**
+```
 stage('Apply Infra') {
   steps {
     input message: 'Proceed with apply?'
@@ -225,58 +140,29 @@ stage('Apply Infra') {
   }
 }
 ```
-
----
-
-![image.png](attachment:bdf336e7-e631-4fd0-883d-764b5501bf71:image.png)
-
-![image.png](attachment:d1e3ade9-0554-434a-b369-a27da243ca8a:image.png)
-
-### Stage: Extract EC2 IPs
-
-Once your infra is created , terraform would output the public ip’s of the EC2 machines and then add these IP’s to the list of known hosts on Jenkins Master server so that it trusts these hosts . This is necessary so that in our next step when Ansible tries to SSH the servers it does so without any hassle 
-
-```groovy
-groovy
-CopyEdit
+**9. Extract Public IPs from Output**
+```
 stage('Extract EC2 IPs') {
   steps {
-    sh '''
-      terraform output -json public_ip_for_ec2 | jq -r '.[]' > inventory_ips.txt
-    '''
+    sh 'terraform output -json public_ip_for_ec2 | jq -r '.[]' > inventory_ips.txt'
   }
 }
-
 ```
-
----
-
-### Stage: Add EC2 Hosts to Known Hosts
-
-```groovy
-groovy
-CopyEdit
+**10. Add Hosts to known_hosts**
+```
 stage('Add EC2 Host to known_hosts') {
   steps {
     sh '''
       EC2_IP=$(cat inventory_ips.txt | head -n 1)
+      echo "Fetching SSH host key for $EC2_IP..."
       ssh-keyscan -H $EC2_IP >> ~/.ssh/known_hosts
     '''
   }
 }
-
 ```
-
----
-
-### Stage: Generate Ansible Inventory
-
-This steps copies the IP’s to the host file required by Ansible 
-
-```groovy
-groovy
-CopyEdit
-stage('Generate Ansible Inventory (Host File)') {
+**11. Generate Ansible Inventory File**
+```
+stage('Generate Ansible Inventory ( Host File)') {
   steps {
     sh '''
       echo "[ec2_instances]" > hosts.ini
@@ -284,44 +170,35 @@ stage('Generate Ansible Inventory (Host File)') {
     '''
   }
 }
-
 ```
-
----
-
-### Stage: Configure with Ansible
-
-```groovy
-groovy
-CopyEdit
+**12. Configure with Ansible**
+```
 stage('Configure with Ansible') {
   steps {
     withCredentials([sshUserPrivateKey(credentialsId: 'ansible_ssh_key', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
-      sh '''
-        ansible-playbook -i hosts.ini playbook.yml --private-key "$SSH_KEY" -u "$SSH_USER"
-      '''
+      sh 'ansible-playbook -i hosts.ini playbook.yml --private-key "$SSH_KEY" -u "$SSH_USER"'
     }
   }
 }
+```
+**13. Post Actions**
+```
+post {
+  success {
+    sh '''
+      terraform output -json public_ip_for_ec2 | jq -r '.[]' > createdinstance_ip.txt
+      echo 'The IP for your created EC2 machine are below:'
+      cat createdinstance_ip.txt
+    '''
+  }
+  always {
+    archiveArtifacts artifacts: '**/terraform.tfstate*', fingerprint: true
+  }
+}
+```
+#### 🌐 Ansible Playbook Sample
 
 ```
-
----
-
-![image.png](attachment:87711057-6ddb-4440-8eef-6db5d9a5fd71:image.png)
-
-This step does the magic of installing nginx on our newly created hosts by terraform.
-
-Here we are passing the ansible-ssh-key which we have configured in the Jenkins UI credentials as a SSH Key with Username type . This credential contains the username , the private key (.pem) file from which the ec2 can be accessed. 
-
-We are also passing playbook.yml in which the actual ansible code resides
-
-### Sample Ansible Playbook
-
-```yaml
-yaml
-CopyEdit
----
 - name: Install and configure Nginx to load static HTML Page
   hosts: all
   become: true
@@ -352,74 +229,24 @@ CopyEdit
         owner: www-data
         group: www-data
         mode: '0644'
-
 ```
+#### 📈 Output
 
----
+Once the pipeline completes, you'll get an IP printed in the Jenkins console. 
+Open http://<public-ip> in browser , you’ll see your custom DevOps welcome page! ✅
 
-Once nginx is installed on the machine , you can access your custom HTML page by simply putting public ip of the machine in the browser 
+####🛡️ Security Considerations (Best Practices)
 
-![image.png](attachment:c6c68062-a337-4439-a514-3a889b01c500:image.png)
+- Avoid committing .tfvars to Git (use .gitignore)
+- Use IAM roles for Jenkins EC2 (instead of hardcoding AWS keys)
+- Use Ansible Vault to encrypt secrets (if passing them in playbooks)
+- Harden EC2 Security Groups — open only needed ports (e.g., 22 and 80)
+- Use remote backend for Terraform state (S3 + DynamoDB locking)
 
-### Post Block
+####🔎 Conclusion
 
-```groovy
-groovy
-CopyEdit
-post {
-  success {
-    sh '''
-      terraform output -json public_ip_for_ec2 | jq -r '.[]' > createdinstance_ip.txt
-      echo 'The IP for your created EC2 machine are below:'
-      cat createdinstance_ip.txt
-    '''
-  }
-  always {
-    archiveArtifacts artifacts: '**/terraform.tfstate*', fingerprint: true
-  }
-}
+If you've followed everything above, your full CI/CD pipeline using Jenkins + Terraform + Ansible should be green ✅.
+“Don’t stop learning. If things don’t work, debug, experiment, and stay open-minded.”
+Check out my GitHub repo here for the full project.
 
-```
-
----
-
-This post block outputs the EC2 public IP to the user on Jenkins Console as a final step .
-
-Notice that we have written output of IP under success block , it means this step only gets executed if all above stages are success only then this is executed.
-
-Now as for the always {} block , it gets executed no matter the result of the stages , this would archive the terraform state file.
-
-You can choose to remote lock this state file by storing it in a secure S3 bucket and lock it using DynamoDB , i have not used this in the demo for now.
-
-If you have implemented all of the above steps correctly , your pipeline should execute and should look like a complete green signal 🙂
-
-![image.png](attachment:8294390b-370d-4fc3-8e5d-cf5807bf1d40:image.png)
-
-## 🛡️ Security Best Practices
-
-1. **Don’t commit `.tfvars` or `.pem` files** to version control. Add them to `.gitignore`.
-2. Use **Jenkins credentials plugin** for secrets and SSH keys.
-3. Consider **remote state storage** using:
-    - S3 bucket for `.tfstate`
-    - DynamoDB for state locking
-4. Never disable host key checking in production (`StrictHostKeyChecking=no`). Instead:
-    - Use `ssh-keyscan` in a pre-step to add EC2 hosts to `known_hosts`.
-
----
-
-## ✅ Final Output
-
-Once the pipeline completes, you’ll see the EC2 IPs printed and Nginx running with your custom HTML.
-
-Congrats , your CI/CD pipeline using Jenkins, Terraform, and Ansible is up and running!
-
-If you want you can have a look at my Github Repo here , suggestions and new learning are always welcomed !
-
----
-
-## 💬 Final Words
-
-> “Don’t stop learning. If things don’t work, debug, experiment, and stay open-minded.”
-> 
-
-If you’re setting up your first Jenkins pipeline , don’t stress. Break things, fix them, and enjoy the process. You’ve got this!
+Kudos if you made it this far! 🚀😊
